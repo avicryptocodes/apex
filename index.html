@@ -1277,6 +1277,14 @@ input[type=range] {
           onclick="toggleSigFilter('deriv')">
           <span class="ft-dot" style="background:var(--blue)"></span>Deriv
         </button>
+        <button class="ft" id="filt-firing"
+          onclick="toggleSigFilter('firing')">
+          <span class="ft-dot" style="background:var(--orange)"></span>⚡ Firing
+        </button>
+        <button class="ft" id="filt-watch"
+          onclick="toggleSigFilter('watch')">
+          <span class="ft-dot" style="background:var(--muted)"></span>Watch
+        </button>
       </div>
 
       <!-- Scan button -->
@@ -1546,7 +1554,7 @@ function toggleSigFilter(sig) {
   } else {
     activeSigFilters.add(sig);
   }
-  ['loaded-long','loaded-short','squeeze','structure','deriv'].forEach(k => {
+  ['loaded-long','loaded-short','squeeze','structure','deriv','firing','watch'].forEach(k => {
     const el = document.getElementById('filt-'+k);
     if (el) el.classList.toggle('active', activeSigFilters.has(k));
   });
@@ -2273,7 +2281,10 @@ function applyFilters() {
     if(s==='squeeze-watch')  return activeSigFilters.has('squeeze');
     if(s==='structure-only') return activeSigFilters.has('structure');
     if(s==='deriv-only')     return activeSigFilters.has('deriv');
-    return true;
+    if(s==='firing')         return activeSigFilters.has('firing');
+    if(s==='exhausted')      return false; // exhausted = trade over, never show
+    if(s==='watch')          return activeSigFilters.has('watch');
+    return false; // neutral/unknown — never show
   });
   if(q) f=f.filter(r=>r.sym.includes(q));
 
