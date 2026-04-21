@@ -1015,17 +1015,150 @@ input[type=range] {
 .rp-content-wrap { animation: sfr .2s ease; }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 768px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .left-panel { max-height: 240px; border-right: none; border-bottom: 1px solid var(--border2); }
-  .right-panel { display: none; }
-}
 @media (max-width: 1100px) {
   .app { grid-template-columns: 220px 1fr 340px; }
 }
 @media (max-width: 860px) {
   .app { grid-template-columns: 200px 1fr; }
   .right-panel { display: none; }
+}
+
+/* ══════════════════════════════════════════════
+   MOBILE LAYOUT — 768px and below
+══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* topbar: hide stat strip, keep logo + live dot */
+  .tb-stats { display: none; }
+  .tb-tag   { display: none; }
+  .tb-pill  { font-size: 7px; padding: 2px 5px; }
+
+  /* Body needs room for bottom bar */
+  body { overflow: hidden; }
+
+  /* App shell: single full column, bottom-nav aware */
+  .app {
+    display: block;
+    position: fixed;
+    top: 46px; left: 0; right: 0;
+    bottom: 54px; /* space for mobile nav bar */
+    overflow: hidden;
+  }
+
+  /* All three panels stack, only active one visible */
+  .left-panel,
+  .center-panel,
+  .right-panel {
+    position: absolute;
+    inset: 0;
+    display: none;
+    border: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .left-panel.mob-active,
+  .center-panel.mob-active,
+  .right-panel.mob-active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Left panel: show controls + list naturally, no height cap */
+  .left-panel { max-height: none; }
+
+  /* Scan button in left panel: make it big and obvious */
+  .scan-btn {
+    font-size: 12px;
+    padding: 12px;
+    letter-spacing: 0.18em;
+  }
+
+  /* Stats grid: 2-col on mobile */
+  .stats-grid { grid-template-columns: repeat(3,1fr); }
+
+  /* Result list fills remaining space */
+  .result-list { flex: 1; }
+
+  /* Heatmap: smaller cells on mobile */
+  #hmGrid {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    grid-auto-rows: minmax(60px, auto);
+    padding: 4px;
+    gap: 2px;
+  }
+  .hm-cell { min-height: 60px; padding: 5px 3px 12px; }
+  .hm-sym  { font-size: 9px; }
+
+  /* Right panel: full scroll */
+  .right-panel { overflow-y: auto; }
+  .rp-body { overflow: visible; }
+
+  /* hm-controls: wrap tighter */
+  .hm-controls { gap: 5px; padding: 6px 8px; }
+  .sort-btn, .hm-filter { font-size: 7px; padding: 3px 6px; }
+
+  /* ── MOBILE BOTTOM NAV BAR ── */
+  .mob-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 54px;
+    background: rgba(8,11,15,0.98);
+    border-top: 1px solid var(--border2);
+    display: flex;
+    align-items: stretch;
+    z-index: 500;
+    backdrop-filter: blur(20px);
+  }
+  .mob-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--sub);
+    font-family: var(--font-ui);
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    transition: color .12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-nav-btn.active { color: var(--violet); }
+  .mob-nav-btn.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 2px;
+    background: var(--violet);
+    border-radius: 0 0 2px 2px;
+  }
+  .mob-nav-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+  /* scan badge on nav Controls tab */
+  .mob-nav-btn .mob-scan-badge {
+    position: absolute;
+    top: 6px; right: calc(50% - 18px);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--bull);
+    display: none;
+  }
+  .mob-nav-btn .mob-scan-badge.on { display: block; }
+
+  /* Hide desktop-only elements on mobile */
+  .hm-legend { display: none; }
+}
+
+/* Desktop: hide mobile nav */
+@media (min-width: 769px) {
+  .mob-nav { display: none; }
 }
 </style>
 </head>
@@ -2020,7 +2153,8 @@ async function runScan() {
 
     setP(10,`${allCoins.length} pairs — fetching confluence data...`,0);
 
-    const BATCH=8; let done=0;
+    const BATCH=3; let done=0;
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
     for(let i=0;i<allCoins.length;i+=BATCH){
       const batch=allCoins.slice(i,i+BATCH);
@@ -2064,7 +2198,7 @@ async function runScan() {
             signal:      confResult.signal,
             direction:   derivResult.direction,
             gated:       confResult.gated,
-            tfCandles, dailyCandles: effectiveDaily,
+
             structResult, derivResult, tradeResult,
             idea: tradeResult.idea,
           });
@@ -2072,6 +2206,7 @@ async function runScan() {
       }));
       done+=batch.length;
       setP(10+Math.round(done/allCoins.length*84),`Analysing...`,done);
+      await sleep(50);
     }
 
     setP(100,'Complete',scanResults.length);
@@ -2290,16 +2425,12 @@ async function loadDetail(sym) {
     const r=scanResults.find(r=>r.sym===sym);
     if(!r) return;
 
-    let tfC, dailyC;
-    if(activeDetailTf===activeTf) {
-      tfC=r.tfCandles; dailyC=r.dailyCandles;
-    } else {
-      const [tc,dc]=await Promise.all([
-        fetchKlines(sym,activeDetailTf),
-        activeDetailTf==='1d'?Promise.resolve(null):fetchKlines(sym,'1d'),
-      ]);
-      tfC=tc; dailyC=activeDetailTf==='1d'?tc:dc;
-    }
+    // Always fetch fresh — candle arrays are not cached in scanResults (memory fix)
+    const [tc,dc]=await Promise.all([
+      fetchKlines(sym,activeDetailTf),
+      activeDetailTf==='1d'?Promise.resolve(null):fetchKlines(sym,'1d'),
+    ]);
+    const tfC=tc; const dailyC=activeDetailTf==='1d'?tc:dc;
 
     if(!tfC||tfC.length<20) {
       body.innerHTML=`<div class="rp-loading" style="color:var(--bear)">No data</div>`;
@@ -2472,6 +2603,82 @@ async function loadDetail(sym) {
 // ── Init ──
 loadMarketData();
 setInterval(loadMarketData, 60000);
+
+// ══════════════════════════════════════════════
+// MOBILE NAV CONTROLLER
+// ══════════════════════════════════════════════
+(function initMobileNav() {
+  const isMob = () => window.innerWidth <= 768;
+
+  const panels = {
+    controls: document.querySelector('.left-panel'),
+    heatmap:  document.querySelector('.center-panel'),
+    detail:   document.querySelector('.right-panel'),
+  };
+
+  let activeTab = 'controls';
+
+  function showTab(tab) {
+    activeTab = tab;
+    if (!isMob()) return;
+    Object.keys(panels).forEach(k => {
+      panels[k].classList.toggle('mob-active', k === tab);
+    });
+    ['controls','heatmap','detail'].forEach(k => {
+      const el = document.getElementById('mobNav-' + k);
+      if (el) el.classList.toggle('active', k === tab);
+    });
+  }
+
+  window.mobShowTab = showTab;
+
+  function onResize() {
+    if (isMob()) {
+      showTab(activeTab);
+    } else {
+      Object.values(panels).forEach(p => p.classList.remove('mob-active'));
+    }
+  }
+
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  // Patch runScan to auto-switch to heatmap after scan on mobile
+  const _origRunScan = window.runScan;
+  window.runScan = async function() {
+    await _origRunScan.apply(this, arguments);
+    if (isMob()) {
+      showTab('heatmap');
+      const badge = document.getElementById('mobScanBadge');
+      if (badge) badge.classList.add('on');
+    }
+  };
+
+  // Patch loadDetail to auto-switch to detail panel on mobile
+  const _origLoadDetail = window.loadDetail;
+  window.loadDetail = async function(sym) {
+    await _origLoadDetail.apply(this, arguments);
+    if (isMob()) showTab('detail');
+  };
+})();
 </script>
+
+<!-- ── MOBILE BOTTOM NAV ── -->
+<nav class="mob-nav">
+  <button class="mob-nav-btn active" id="mobNav-controls" onclick="mobShowTab('controls')">
+    <span class="mob-nav-icon">⚙</span>
+    Controls
+  </button>
+  <button class="mob-nav-btn" id="mobNav-heatmap" onclick="mobShowTab('heatmap')">
+    <span class="mob-nav-icon">◈</span>
+    Heatmap
+    <span class="mob-scan-badge" id="mobScanBadge"></span>
+  </button>
+  <button class="mob-nav-btn" id="mobNav-detail" onclick="mobShowTab('detail')">
+    <span class="mob-nav-icon">◉</span>
+    Detail
+  </button>
+</nav>
+
 </body>
 </html>
