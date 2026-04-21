@@ -1277,10 +1277,6 @@ input[type=range] {
           onclick="toggleSigFilter('deriv')">
           <span class="ft-dot" style="background:var(--blue)"></span>Deriv
         </button>
-        <button class="ft" id="filt-firing"
-          onclick="toggleSigFilter('firing')">
-          <span class="ft-dot" style="background:var(--orange)"></span>⚡ Firing
-        </button>
         <button class="ft" id="filt-watch"
           onclick="toggleSigFilter('watch')">
           <span class="ft-dot" style="background:var(--muted)"></span>Watch
@@ -1334,7 +1330,7 @@ input[type=range] {
       <button class="hm-filter f-loaded-short" id="hf-loaded-short" onclick="setHmView('loaded-short')">▼ Loaded</button>
       <button class="hm-filter f-squeeze" id="hf-squeeze" onclick="setHmView('squeeze')">Squeeze</button>
       <button class="hm-filter f-building" id="hf-building" onclick="setHmView('building')">Building</button>
-      <button class="hm-filter f-done" id="hf-done" onclick="setHmView('done')">Done/Live</button>
+
     </div>
 
     <!-- Heatmap -->
@@ -1360,7 +1356,7 @@ input[type=range] {
       <div class="lg-item"><div class="lg-dot" style="background:rgba(108,71,255,.28)"></div>STRUCTURE ONLY</div>
       <div class="lg-item"><div class="lg-dot" style="background:rgba(64,196,255,.2)"></div>DERIV ONLY</div>
       <div class="lg-item"><div class="lg-dot" style="background:rgba(255,152,0,.42)"></div>⚡ FIRING</div>
-      <div class="lg-item"><div class="lg-dot" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"></div>EXHAUSTED</div>
+
       <div style="font-size:8px;color:var(--muted);margin-left:4px;">Bottom bars = Deriv · Struct · Trade pillars</div>
     </div>
 
@@ -1541,7 +1537,7 @@ function setSort(s) {
 }
 function setHmView(v) {
   activeHmView = v;
-  ['all','loaded-long','loaded-short','squeeze','building','done'].forEach(k => {
+  ['all','loaded-long','loaded-short','squeeze','building'].forEach(k => {
     const el = document.getElementById('hf-'+k);
     if (el) el.classList.toggle('active', k===v);
   });
@@ -1554,7 +1550,7 @@ function toggleSigFilter(sig) {
   } else {
     activeSigFilters.add(sig);
   }
-  ['loaded-long','loaded-short','squeeze','structure','deriv','firing','watch'].forEach(k => {
+  ['loaded-long','loaded-short','squeeze','structure','deriv','watch'].forEach(k => {
     const el = document.getElementById('filt-'+k);
     if (el) el.classList.toggle('active', activeSigFilters.has(k));
   });
@@ -2068,18 +2064,19 @@ function computeConfluence(derivScore, structScore, tradeScore, direction, fr, o
   const abs1h     = change1h!==null?Math.abs(change1h):0;
   const abs24h    = change24h!==null?Math.abs(change24h):0;
 
-  // Already firing or exhausted
-  if (abs4h>15) {
-    signal = abs4h>18?'exhausted':'firing';
-    return { confluence, signal, gated:false };
+  // Already firing — still useful to show
+  if (abs4h>15&&abs4h<=18) {
+    return { confluence, signal:'firing', gated:false };
+  }
+  // Exhausted — trade is over, suppress completely
+  if (abs4h>18) {
+    return { confluence, signal:'exhausted', gated:true };
   }
   if (absFr<0.01&&abs24h>10) {
-    signal = 'exhausted';
-    return { confluence, signal, gated:false };
+    return { confluence, signal:'exhausted', gated:true };
   }
   if (abs1h>8&&oiDelta!==null&&oiDelta<0) {
-    signal = 'firing';
-    return { confluence, signal, gated:false };
+    return { confluence, signal:'firing', gated:false };
   }
 
   // Core signals
@@ -2281,10 +2278,9 @@ function applyFilters() {
     if(s==='squeeze-watch')  return activeSigFilters.has('squeeze');
     if(s==='structure-only') return activeSigFilters.has('structure');
     if(s==='deriv-only')     return activeSigFilters.has('deriv');
-    if(s==='firing')         return activeSigFilters.has('firing');
-    if(s==='exhausted')      return false; // exhausted = trade over, never show
+    if(s==='firing')         return true; // firing always shown — move in progress
     if(s==='watch')          return activeSigFilters.has('watch');
-    return false; // neutral/unknown — never show
+    return false; // exhausted/neutral/unknown — never show
   });
   if(q) f=f.filter(r=>r.sym.includes(q));
 
@@ -2308,9 +2304,7 @@ const SIG_CFG = {
   'structure-only': { label:'△ STRUCTURE',    color:'var(--violet)' },
   'deriv-only':     { label:'◇ DERIV ONLY',   color:'var(--blue)' },
   'firing':         { label:'⚡ FIRING',        color:'var(--orange)' },
-  'exhausted':      { label:'✓ EXHAUSTED',    color:'var(--muted)' },
   'watch':          { label:'◈ WATCH',         color:'var(--warn)' },
-  'neutral':        { label:'— NEUTRAL',      color:'var(--muted)' },
 };
 
 function renderList() {
@@ -2378,7 +2372,6 @@ function renderHeatmap() {
   if(activeHmView==='loaded-short') coins=coins.filter(r=>r.signal==='loaded-short');
   if(activeHmView==='squeeze')      coins=coins.filter(r=>r.signal==='squeeze-watch');
   if(activeHmView==='building')     coins=coins.filter(r=>r.signal==='structure-only'||r.signal==='deriv-only');
-  if(activeHmView==='done')         coins=coins.filter(r=>r.signal==='firing'||r.signal==='exhausted');
 
   if(!coins.length){
     grid.innerHTML=`<div class="hm-empty"><div class="hm-empty-sub">No results for this view.</div></div>`;
